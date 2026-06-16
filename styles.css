@@ -64,6 +64,16 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
   white-space: nowrap;
 }
 
+.header-fecha {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: 3px 8px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 999px;
+}
+
 /* ── Leyenda flotante ── */
 .leyenda-panel {
   position: fixed;

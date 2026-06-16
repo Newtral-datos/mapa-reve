@@ -4,6 +4,17 @@
 
 const CARGADORES_FILE = 'cargadores.pmtiles';
 
+/* ── Fecha de última actualización ── */
+fetch('metadata.json')
+  .then(r => r.json())
+  .then(m => {
+    if (!m.actualizado) return;
+    const d = new Date(m.actualizado);
+    const label = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    document.getElementById('header-fecha').textContent = `Datos: ${label}`;
+  })
+  .catch(() => {});
+
 /* ── Mapa ── */
 const map = new maplibregl.Map({
   container: 'map',
