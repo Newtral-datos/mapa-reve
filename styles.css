@@ -73,6 +73,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
   background: rgba(0,0,0,0.05);
   border-radius: 999px;
 }
+.header-fecha:empty { display: none; }
 
 /* ── Leyenda flotante ── */
 .leyenda-panel {
