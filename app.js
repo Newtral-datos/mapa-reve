@@ -28,7 +28,7 @@ const map = new maplibregl.Map({
 
 const infoPanel = document.getElementById('info-panel');
 let popup      = null;
-let colorMode  = 'potencia';   // 'potencia' | 'acceso'
+let colorMode  = 'precio';   // 'precio' | 'potencia'
 let filtroActivo = 'todos';
 
 /* ── Nombres cortos de estándares ── */
@@ -43,7 +43,20 @@ const STD = {
   'DOMESTIC_E':         'Francés',
 };
 
-/* ── Escala de color por potencia (monocromática #01f3b3) ── */
+/* ── Color por precio de energía (verde=barato → rojo=caro) ── */
+const precioColor = [
+  'case',
+  ['!', ['has', 'precio_energia_eur_kwh']], '#d1d5db',
+  ['interpolate', ['linear'], ['get', 'precio_energia_eur_kwh'],
+    0.15, '#01f3b3',   // muy barato
+    0.30, '#6be5c4',   // barato
+    0.40, '#f59e0b',   // medio
+    0.55, '#f97316',   // caro
+    0.70, '#ef4444',   // muy caro
+  ],
+];
+
+/* ── Color por potencia (monocromática #01f3b3) ── */
 const potenciaColor = [
   'case',
   ['!', ['has', 'potencia_max_kw']], '#d1faf3',
@@ -56,17 +69,18 @@ const potenciaColor = [
   ],
 ];
 
-/* ── Color por accesibilidad ── */
-const accesibilidadColor = [
-  'match', ['get', 'accesibilidad'],
-  'SI',           '#01f3b3',
-  'NO',           '#f97316',
-  'NODISPONIBLE', '#9ca3af',
-  '#d1d5db',
-];
-
 /* ── Leyendas ── */
 const LEY = {
+  precio: `
+    <div class="lp-titulo">Precio energía</div>
+    <div class="lp-steps">
+      <div class="lp-step"><span class="lp-dot" style="background:#01f3b3"></span>< 0,25 €/kWh · barato</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#6be5c4"></span>0,25 – 0,40 €/kWh</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#f59e0b"></span>0,40 – 0,55 €/kWh</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#f97316"></span>0,55 – 0,70 €/kWh</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#ef4444"></span>> 0,70 €/kWh · caro</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#d1d5db"></span>Sin datos de precio</div>
+    </div>`,
   potencia: `
     <div class="lp-titulo">Potencia máxima</div>
     <div class="lp-steps">
@@ -75,13 +89,6 @@ const LEY = {
       <div class="lp-step"><span class="lp-dot" style="background:#01f3b3"></span>50 – 150 kW · DC rápido</div>
       <div class="lp-step"><span class="lp-dot" style="background:#009e74"></span>150 – 350 kW · DC ultra</div>
       <div class="lp-step"><span class="lp-dot" style="background:#004d38"></span>> 350 kW · DC hyperfast</div>
-    </div>`,
-  acceso: `
-    <div class="lp-titulo">Accesibilidad</div>
-    <div class="lp-steps">
-      <div class="lp-step"><span class="lp-dot" style="background:#01f3b3"></span>Accesible públicamente</div>
-      <div class="lp-step"><span class="lp-dot" style="background:#f97316"></span>Acceso restringido</div>
-      <div class="lp-step"><span class="lp-dot" style="background:#9ca3af"></span>No disponible / sin datos</div>
     </div>`,
 };
 
@@ -127,7 +134,7 @@ map.on('load', async () => { try {
     'source-layer': 'cargadores',
     paint: {
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 8, 3.5, 12, 6, 16, 10],
-      'circle-color': potenciaColor,
+      'circle-color': precioColor,
       'circle-opacity': 0.88,
       'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 4, 0, 8, 0.8, 14, 1.5],
       'circle-stroke-color': '#ffffff',
@@ -167,8 +174,8 @@ map.on('load', async () => { try {
   });
 
   /* ── Color toggle ── */
+  document.getElementById('btn-precio').addEventListener('click',   () => setColor('precio'));
   document.getElementById('btn-potencia').addEventListener('click', () => setColor('potencia'));
-  document.getElementById('btn-acceso').addEventListener('click',   () => setColor('acceso'));
 
   /* ── Filtro chips ── */
   document.querySelectorAll('[data-filtro]').forEach(btn => {
@@ -197,10 +204,10 @@ function setColor(mode) {
   colorMode = mode;
   map.setPaintProperty(
     'cargadores-circle', 'circle-color',
-    mode === 'potencia' ? potenciaColor : accesibilidadColor
+    mode === 'precio' ? precioColor : potenciaColor
   );
+  document.getElementById('btn-precio').classList.toggle('active',   mode === 'precio');
   document.getElementById('btn-potencia').classList.toggle('active', mode === 'potencia');
-  document.getElementById('btn-acceso').classList.toggle('active',   mode === 'acceso');
   renderLeyenda();
 }
 
