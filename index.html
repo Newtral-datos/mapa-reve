@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Puntos de recarga eléctrica · España</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!--
+    Servidor local:
+      cd mapa
+      python3 -m http.server 8000
+    http://localhost:8000
+  -->
+
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div id="map"></div>
+
+  <header id="header">
+    <span class="header-title">Puntos de recarga eléctrica · España</span>
+    <span class="header-count" id="header-count"></span>
+  </header>
+
+  <button id="reset-btn" class="ctrl-btn">&#8635;</button>
+
+  <div id="color-toggle" class="vista-toggle">
+    <button id="btn-potencia" class="vista-btn active">Potencia</button>
+    <button id="btn-acceso"   class="vista-btn">Acceso</button>
+  </div>
+
+  <div id="filtro-bar" class="filtro-bar">
+    <button class="filtro-chip active" data-filtro="todos">Todos</button>
+    <button class="filtro-chip"        data-filtro="dc">Solo DC</button>
+    <button class="filtro-chip"        data-filtro="ac">Solo AC</button>
+    <button class="filtro-chip"        data-filtro="ccs2">CCS2</button>
+    <button class="filtro-chip"        data-filtro="chademo">CHAdeMO</button>
+    <button class="filtro-chip"        data-filtro="t2">Tipo 2</button>
+  </div>
+
+  <div id="leyenda-panel" class="leyenda-panel"></div>
+  <div id="tooltip" class="map-tooltip"></div>
+  <div id="info-panel" class="info-panel ip-hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
