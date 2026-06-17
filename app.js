@@ -28,8 +28,10 @@ const map = new maplibregl.Map({
 
 const infoPanel = document.getElementById('info-panel');
 let popup      = null;
-let colorMode  = 'precio';   // 'precio' | 'potencia'
+let colorMode  = 'precio';
 let filtroActivo = 'todos';
+let precioFiltro = 1.00;
+const PRECIO_MAX = 1.00;
 
 /* ── Nombres cortos de estándares ── */
 const STD = {
@@ -43,16 +45,16 @@ const STD = {
   'DOMESTIC_E':         'Francés',
 };
 
-/* ── Color por precio de energía (verde=barato → rojo=caro) ── */
+/* ── Color por precio de energía (misma paleta que potencia) ── */
 const precioColor = [
   'case',
-  ['!', ['has', 'precio_energia_eur_kwh']], '#d1d5db',
+  ['!', ['has', 'precio_energia_eur_kwh']], '#aaaaaa',
   ['interpolate', ['linear'], ['get', 'precio_energia_eur_kwh'],
-    0.15, '#01f3b3',   // muy barato
-    0.30, '#6be5c4',   // barato
-    0.40, '#f59e0b',   // medio
-    0.55, '#f97316',   // caro
-    0.70, '#ef4444',   // muy caro
+    0.15, '#b3f9e6',   // muy barato
+    0.30, '#33f2be',
+    0.40, '#01f3b3',
+    0.55, '#009e74',
+    0.70, '#004d38',   // muy caro
   ],
 ];
 
@@ -74,12 +76,12 @@ const LEY = {
   precio: `
     <div class="lp-titulo">Precio energía</div>
     <div class="lp-steps">
-      <div class="lp-step"><span class="lp-dot" style="background:#01f3b3"></span>< 0,25 €/kWh · barato</div>
-      <div class="lp-step"><span class="lp-dot" style="background:#6be5c4"></span>0,25 – 0,40 €/kWh</div>
-      <div class="lp-step"><span class="lp-dot" style="background:#f59e0b"></span>0,40 – 0,55 €/kWh</div>
-      <div class="lp-step"><span class="lp-dot" style="background:#f97316"></span>0,55 – 0,70 €/kWh</div>
-      <div class="lp-step"><span class="lp-dot" style="background:#ef4444"></span>> 0,70 €/kWh · caro</div>
-      <div class="lp-step"><span class="lp-dot" style="background:#d1d5db"></span>Sin datos de precio</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#b3f9e6"></span>< 0,25 €/kWh · barato</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#33f2be"></span>0,25 – 0,40 €/kWh</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#01f3b3"></span>0,40 – 0,55 €/kWh</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#009e74"></span>0,55 – 0,70 €/kWh</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#004d38"></span>> 0,70 €/kWh · caro</div>
+      <div class="lp-step"><span class="lp-dot" style="background:#aaaaaa"></span>Sin datos de precio</div>
     </div>`,
   potencia: `
     <div class="lp-titulo">Potencia máxima</div>
@@ -94,14 +96,22 @@ const LEY = {
 
 /* ── Filtro activo → expresión MapLibre ── */
 function filtroExpresion() {
+  const conds = [];
   switch (filtroActivo) {
-    case 'dc':      return ['==', ['get', 'tiene_dc'],      1];
-    case 'ac':      return ['==', ['get', 'tiene_ac'],      1];
-    case 'ccs2':    return ['==', ['get', 'tiene_ccs2'],    1];
-    case 'chademo': return ['==', ['get', 'tiene_chademo'], 1];
-    case 't2':      return ['==', ['get', 'tiene_t2'],      1];
-    default:        return null;
+    case 'ac':      conds.push(['==', ['get', 'tiene_ac'],      1]); break;
+    case 'ccs2':    conds.push(['==', ['get', 'tiene_ccs2'],    1]); break;
+    case 'chademo': conds.push(['==', ['get', 'tiene_chademo'], 1]); break;
+    case 't2':      conds.push(['==', ['get', 'tiene_t2'],      1]); break;
   }
+  if (precioFiltro < PRECIO_MAX) {
+    conds.push(['any',
+      ['!', ['has', 'precio_energia_eur_kwh']],
+      ['<=', ['get', 'precio_energia_eur_kwh'], precioFiltro],
+    ]);
+  }
+  if (conds.length === 0) return null;
+  if (conds.length === 1) return conds[0];
+  return ['all', ...conds];
 }
 
 function aplicarFiltro() {
@@ -137,8 +147,8 @@ map.on('load', async () => { try {
       'circle-color': precioColor,
       'circle-opacity': 0.88,
       'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 4, 0, 8, 0.8, 14, 1.5],
-      'circle-stroke-color': '#ffffff',
-      'circle-stroke-opacity': 0.65,
+      'circle-stroke-color': '#494949',
+      'circle-stroke-opacity': 0.5,
     },
   });
 
@@ -173,10 +183,6 @@ map.on('load', async () => { try {
     if (!feats.length && popup?.isOpen()) popup.remove();
   });
 
-  /* ── Color toggle ── */
-  document.getElementById('btn-precio').addEventListener('click',   () => setColor('precio'));
-  document.getElementById('btn-potencia').addEventListener('click', () => setColor('potencia'));
-
   /* ── Filtro chips ── */
   document.querySelectorAll('[data-filtro]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -185,6 +191,47 @@ map.on('load', async () => { try {
         b.classList.toggle('active', b === btn)
       );
       aplicarFiltro();
+    });
+  });
+
+  /* ── Slider de precio ── */
+  const sliderEl = document.getElementById('precio-slider');
+  const sliderValEl = document.getElementById('precio-slider-val');
+
+  function actualizarSlider(val) {
+    const min = +sliderEl.min, max = +sliderEl.max;
+    const pct = ((val - min) / (max - min) * 100).toFixed(1) + '%';
+    sliderEl.style.setProperty('--pct', pct);
+    precioFiltro = val / 100;
+    sliderValEl.textContent = precioFiltro >= PRECIO_MAX
+      ? 'Todos'
+      : `≤ ${precioFiltro.toFixed(2).replace('.', ',')} €/kWh`;
+    aplicarFiltro();
+  }
+
+  sliderEl.addEventListener('input', e => actualizarSlider(parseInt(e.target.value)));
+
+  /* ── Toggle vista (precio / potencia) ── */
+  document.querySelectorAll('[data-modo]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      colorMode = btn.dataset.modo;
+      document.querySelectorAll('[data-modo]').forEach(b =>
+        b.classList.toggle('active', b === btn)
+      );
+      const filtroBar = document.getElementById('filtro-bar');
+      if (colorMode === 'potencia') {
+        map.setPaintProperty('cargadores-circle', 'circle-color', potenciaColor);
+        filtroBar.classList.add('visible');
+      } else {
+        map.setPaintProperty('cargadores-circle', 'circle-color', precioColor);
+        filtroActivo = 'todos';
+        document.querySelectorAll('[data-filtro]').forEach(b =>
+          b.classList.toggle('active', b.dataset.filtro === 'todos')
+        );
+        aplicarFiltro();
+        filtroBar.classList.remove('visible');
+      }
+      renderLeyenda();
     });
   });
 
@@ -199,18 +246,6 @@ map.on('load', async () => { try {
   console.error('Error inicializando el mapa:', err);
 }});
 
-/* ── Cambio de modo de color ── */
-function setColor(mode) {
-  colorMode = mode;
-  map.setPaintProperty(
-    'cargadores-circle', 'circle-color',
-    mode === 'precio' ? precioColor : potenciaColor
-  );
-  document.getElementById('btn-precio').classList.toggle('active',   mode === 'precio');
-  document.getElementById('btn-potencia').classList.toggle('active', mode === 'potencia');
-  renderLeyenda();
-}
-
 function renderLeyenda() {
   document.getElementById('leyenda-panel').innerHTML = LEY[colorMode];
 }
@@ -220,11 +255,11 @@ function renderPanelEvse(p) {
   const nombre    = p.nombre    || p.cpo_name || '—';
   const dir       = [p.direccion, p.ciudad].filter(Boolean).join(', ');
   const estandares = p.estandar_list || '—';
-  const potencia  = p.potencia_max_kw != null ? `${p.potencia_max_kw} kW` : '—';
+  const potencia  = p.potencia_max_kw != null ? `${fmtPrecio(p.potencia_max_kw)} kW` : '—';
   const acceso    = ({ SI: 'Accesible', NO: 'Restringido', NODISPONIBLE: 'No disp.' })[p.accesibilidad] || '—';
-  const precioStr = p.precio_energia_eur_kwh != null ? `${p.precio_energia_eur_kwh} €/kWh`
-                  : p.precio_conexion_eur    != null ? `${p.precio_conexion_eur} € conexión`
-                  : p.precio_tiempo_eur_min  != null ? `${p.precio_tiempo_eur_min} €/min`
+  const precioStr = p.precio_energia_eur_kwh != null ? `${fmtPrecio(p.precio_energia_eur_kwh)} €/kWh`
+                  : p.precio_conexion_eur    != null ? `${fmtPrecio(p.precio_conexion_eur)} € conexión`
+                  : p.precio_tiempo_eur_min  != null ? `${fmtPrecio(p.precio_tiempo_eur_min)} €/min`
                   : null;
   const fechaEvse = formatFecha(p.evse_actualizado);
 
@@ -250,10 +285,6 @@ function renderPanelEvse(p) {
           <span class="ip-stat-val ip-stat-val--sm">${escHtml(estandares)}</span>
           <span class="ip-stat-key">Estándar</span>
         </div>
-        <div class="ip-stat">
-          <span class="ip-stat-val ip-stat-val--sm">${acceso}</span>
-          <span class="ip-stat-key">Acceso</span>
-        </div>
       </div>
       ${(precioStr || fechaEvse) ? `
       <div class="ip-footer">
@@ -270,7 +301,7 @@ function renderPopupEvse(lngLat, p) {
   const loc       = [p.ciudad, p.codigo_postal].filter(Boolean).join(' ');
   const evseId    = p.evse_id   || '';
   const estandares = p.estandar_list || '—';
-  const potencia  = p.potencia_max_kw != null ? `${p.potencia_max_kw} kW` : '—';
+  const potencia  = p.potencia_max_kw != null ? `${fmtPrecio(p.potencia_max_kw)} kW` : '—';
   const acceso    = ({ SI: 'Accesible', NO: 'Restringido', NODISPONIBLE: 'No disponible' })[p.accesibilidad] || '—';
   const h24       = p.horario_24h ? '24 h' : null;
   const tipoCte   = p.tipo_cte  || '';
@@ -302,9 +333,7 @@ function renderPopupEvse(lngLat, p) {
           ${stat('EVSE ID',     evseId)}
           ${stat('Estándar',    estandares)}
           ${stat('Potencia',    potencia)}
-          ${stat('Acceso',      acceso)}
           ${stat('Horario',     h24)}
-          ${stat('Actualizado', fechaEvse)}
         </div>
         ${tarifaHtml ? `<div class="pp-sep"></div>${tarifaHtml}` : ''}
         <a class="pp-link" href="${mapsUrl}" target="_blank" rel="noopener">Ver en Google Maps →</a>
@@ -324,6 +353,8 @@ function escHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function fmtPrecio(n) { return String(n).replace('.', ','); }
+
 function formatFecha(iso) {
   if (!iso) return null;
   const d = new Date(iso);
@@ -332,10 +363,9 @@ function formatFecha(iso) {
 
 function buildTarifaHtml(p) {
   const rows = [];
-  if (p.precio_energia_eur_kwh != null) rows.push(['Energía', `${p.precio_energia_eur_kwh} €/kWh`]);
-  if (p.precio_tiempo_eur_min  != null) rows.push(['Tiempo',  `${p.precio_tiempo_eur_min} €/min`]);
-  if (p.precio_conexion_eur    != null) rows.push(['Inicio',  `${p.precio_conexion_eur} €`]);
-  if (p.precio_aparcamiento_eur_min != null) rows.push(['Parking', `${p.precio_aparcamiento_eur_min} €/min`]);
+  if (p.precio_energia_eur_kwh != null) rows.push(['Energía', `${fmtPrecio(p.precio_energia_eur_kwh)} €/kWh`]);
+  if (p.precio_tiempo_eur_min  != null) rows.push(['Tiempo',  `${fmtPrecio(p.precio_tiempo_eur_min)} €/min`]);
+  if (p.precio_conexion_eur    != null) rows.push(['Inicio',  `${fmtPrecio(p.precio_conexion_eur)} €`]);
   if (!rows.length) return null;
   const fechaTarifa = formatFecha(p.tarifa_actualizada);
   const moneda = p.moneda ? ` · ${p.moneda}` : '';

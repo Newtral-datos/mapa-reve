@@ -23,7 +23,7 @@
   <div id="map"></div>
 
   <header id="header">
-    <span class="header-title">Puntos de recarga eléctrica · España</span>
+    <span class="header-title">Puntos de recarga eléctrica en España</span>
     <span class="header-count" id="header-count"></span>
     <span class="header-fecha" id="header-fecha"></span>
   </header>
@@ -31,17 +31,24 @@
   <button id="reset-btn" class="ctrl-btn">&#8635;</button>
 
   <div id="color-toggle" class="vista-toggle">
-    <button id="btn-precio"   class="vista-btn active">Precio</button>
-    <button id="btn-potencia" class="vista-btn">Potencia</button>
+    <button class="vista-btn active" data-modo="precio">Precio</button>
+    <button class="vista-btn" data-modo="potencia">Conectores</button>
   </div>
 
   <div id="filtro-bar" class="filtro-bar">
     <button class="filtro-chip active" data-filtro="todos">Todos</button>
-    <button class="filtro-chip"        data-filtro="dc">Solo DC</button>
     <button class="filtro-chip"        data-filtro="ac">Solo AC</button>
     <button class="filtro-chip"        data-filtro="ccs2">CCS2</button>
     <button class="filtro-chip"        data-filtro="chademo">CHAdeMO</button>
     <button class="filtro-chip"        data-filtro="t2">Tipo 2</button>
+  </div>
+
+  <div id="precio-slider-wrap" class="precio-slider-wrap">
+    <div class="slider-header">
+      <span class="slider-label">Precio máx.</span>
+      <span id="precio-slider-val" class="slider-val">Todos</span>
+    </div>
+    <input type="range" id="precio-slider" class="precio-slider" min="10" max="100" value="100" step="5" />
   </div>
 
   <div id="leyenda-panel" class="leyenda-panel"></div>
